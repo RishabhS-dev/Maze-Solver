@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maze Solver</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            background: linear-gradient(135deg, #f6d365, #fda085);
+            background-size: cover;
+            background-attachment: fixed;
+            color: #333;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            color: #fff;
+            text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        #controls {
+            margin: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        #result {
+            font-size: 1.5rem;
+            color: #27ae60;  /* Green color for success */
+            font-weight: bold;
+            margin-top: 20px;
+        }
+        
+        
+        button {
+            padding: 10px 20px;
+            border: none;
+            background-color: #3498db;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        /* Adding a subtle texture effect to the background */
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('https://www.transparenttextures.com/patterns/asfalt-light.png');
+            opacity: 0.1;
+            pointer-events: none;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        #controls {
+            margin: 20px;
+        }
+        #grid {
+            display: grid;
+            grid-template-columns: repeat(20, 30px);
+            grid-template-rows: repeat(20, 30px);
+            gap: 2px;
+            margin: auto;
+            width: fit-content;
+        }
+        .cell {
+            width: 30px;
+            height: 30px;
+            background-color: white;
+            border: 1px solid black;
+            border-radius: 5px;
+            box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+            transition: background-color 0.3s;
+        }
+        .cell:hover {
+            background-color: #f0f0f0;
+            cursor: pointer;
+        }
+        .start { background-color: rgb(180, 52, 173); }
+        .end { background-color: rgb(26, 226, 26); }
+        .wall { background-color: black; }
+        .path { background-color: rgb(46, 178, 205); }
+    </style>
+</head>
+<body>
+    <h1>Maze Solver</h1>
+    <div id="controls">
+        <button id="set-start">Set Start</button>
+        <button id="set-end">Set End</button>
+        <button id="random-maze">Generate Maze</button>
+        <button id="solve">Solve Maze</button>
+        <button id="reset">Reset</button>
+    </div>
+    <div id="grid"></div>
+    <!-- Add this div to display the shortest distance -->
+    <div id="result" style="margin-top: 20px; font-size: 1.2rem;"></div>
+    <script>
+        const rows = 20, cols = 20;
+        let start = [0, 0], end = [rows - 1, cols - 1];
+        let settingStart = false, settingEnd = false;
+        let grid = Array.from({ length: rows }, () => Array(cols).fill(0));
+        const gridContainer = document.getElementById("grid");
+
+        function createGrid() {
+            gridContainer.innerHTML = "";
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    let cell = document.createElement("div");
+                    cell.classList.add("cell");
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+                    if (r === start[0] && c === start[1]) cell.classList.add("start");
+                    else if (r === end[0] && c === end[1]) cell.classList.add("end");
+                    else if (grid[r][c] === 1) cell.classList.add("wall");
+                    cell.addEventListener("click", toggleCell);
+                    gridContainer.appendChild(cell);
+                }
+            }
+        }
+
+        function toggleCell(event) {
+            let row = parseInt(event.target.dataset.row), col = parseInt(event.target.dataset.col);
+            if (settingStart) {
+                start = [row, col];
+                settingStart = false;
+            } else if (settingEnd) {
+                end = [row, col];
+                settingEnd = false;
+            } else {
+                grid[row][col] = grid[row][col] === 0 ? 1 : 0;
+            }
+            createGrid();
+        }
+
+        function solveMaze() {
+            let queue = [[start, []]];
+            let visited = new Set();
+            while (queue.length) {
+                let [[x, y], path] = queue.shift();
+                if (x === end[0] && y === end[1]) {
+                    visualizePath(path);
+                    return;
+                }
+                if (visited.has(`${x},${y}`)) continue;
+                visited.add(`${x},${y}`);
+                path.push([x, y]);
+                [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => {
+                    let nx = x + dx, ny = y + dy;
+                    if (nx >= 0 && nx < rows && ny >= 0 && ny < cols && grid[nx][ny] === 0) {
+                        queue.push([[nx, ny], [...path]]);
+                    }
+                });
+            }
+        }
+
+        function visualizePath(path) {
+            path.forEach(([r, c], index) => {
+                setTimeout(() => {
+                    document.querySelector(`[data-row='${r}'][data-col='${c}']`).classList.add("path");
+                }, 50 * index);
+            });
+        }
+
+        function resetGrid() {
+            grid = Array.from({ length: rows }, () => Array(cols).fill(0));
+            createGrid();
+        }
+
+        function generateRandomMaze() {
+            resetGrid();
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    if (Math.random() < 0.3 && !(r === start[0] && c === start[1]) && !(r === end[0] && c === end[1])) {
+                        grid[r][c] = 1;
+                    }
+                }
+            }
+            createGrid();
+        }
+
+        document.getElementById("set-start").addEventListener("click", () => settingStart = true);
+        document.getElementById("set-end").addEventListener("click", () => settingEnd = true);
+        document.getElementById("reset").addEventListener("click", resetGrid);
+        document.getElementById("random-maze").addEventListener("click", generateRandomMaze);
+        document.getElementById("solve").addEventListener("click", solveMaze);
+
+        createGrid();
+        let shortestDistance = 0; // Variable to store the shortest distance
+
+function solveMaze() {
+    let queue = [[start, []]];
+    let visited = new Set();
+    let found = false;  // Flag to check if path is found
+    while (queue.length) {
+        let [[x, y], path] = queue.shift();
+        if (x === end[0] && y === end[1]) {
+            visualizePath(path);
+            shortestDistance = path.length;  // Set shortest distance
+            found = true;
+            break;
+        }
+        if (visited.has(`${x},${y}`)) continue;
+        visited.add(`${x},${y}`);
+        path.push([x, y]);
+        [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => {
+            let nx = x + dx, ny = y + dy;
+            if (nx >= 0 && nx < rows && ny >= 0 && ny < cols && grid[nx][ny] === 0) {
+                queue.push([[nx, ny], [...path]]);
+            }
+        });
+    }
+    // Display the result once solved
+    if (found) {
+        document.getElementById('result').innerHTML = `Shortest Distance: ${shortestDistance} steps.`;
+    } else {
+        document.getElementById('result').innerHTML = "No path found!";
+    }
+}
+
+function visualizePath(path) {
+    path.forEach(([r, c], index) => {
+        setTimeout(() => {
+            document.querySelector(`[data-row='${r}'][data-col='${c}']`).classList.add("path");
+        }, 50 * index);
+    });
+}
+
+    </script>
+</body>
+</html>
